@@ -1,25 +1,50 @@
 extern crate chrono; 
 use walkdir::WalkDir;
-use std::error::Error;
+//use std::error::Error;
 use std::path::Path;
-use filesize::PathExt;
+//use filesize::PathExt;
 use std::fs;
 use filetime::FileTime;
 use fs_extra::dir::get_size;
 use std::collections::HashMap;
 use chrono::prelude::*;
+use gio::prelude::*;
+use gtk::prelude::*;
+use gtk::{Application, ApplicationWindow, Box, Label, Image, Orientation};
+use std::env;
+//->Result <(), Box<dyn Error>>
 
-fn main() ->Result <(), Box<dyn Error>> {
+fn main()  {
+let app = Application::new(
+Some ("com.danlogs.disk"),
+gio::ApplicationFlags::FLAGS_NONE,
+).expect("Failed to initialize GTK.");
 
-sort_by_time();
+app.connect_activate(|app|  {
+let glade_src = include_str!("../layout.glade");
+let builder = gtk::Builder::from_string(glade_src);
+let window :gtk::Window = builder.get_object("application_window1").unwrap();
+window.set_application(Some(app));
+//let window = ApplicationWindow::new(app);
+//window.set_title("disk");
+//window.set_default_size(350,70);
+//let layout_box = Box
+window.show_all();
+
+});
+app.run(&env::args().collect::<Vec<_>>());
+
+
 //sort_by_size();
+
+//sort_by_time();
 //find_duplicate();
-Ok(()) 
+//Ok() ;
 }
 fn sort_by_size(){
 
 let mut file_and_size_vec = vec![];
-  for entry in WalkDir::new("/home/maram/OSProject") {
+  for entry in WalkDir::new("/home/maram/disk") {
     
     let entry = entry.unwrap();
     let path = Path::new(entry.path());
@@ -44,7 +69,7 @@ println!("{}\n{} bytes\n", item.1, item.0);
 fn sort_by_time(){
 
 let mut file_and_time_vec = vec![];
-  for entry in WalkDir::new("/home/maram/OSProject") {
+  for entry in WalkDir::new("/home/maram/disk") {
     
     let entry = entry.unwrap();
     let path = Path::new(entry.path());
@@ -53,8 +78,8 @@ let mut file_and_time_vec = vec![];
     
     let file_time= FileTime::from_last_modification_time(&metadata_d); 
     let timestamp = file_time.seconds();
-    let naive = NaiveDateTime::from_timestamp(timestamp, 0);
-    
+   let naive = NaiveDateTime::from_timestamp(timestamp, 0);
+    //let naive = from_timestamp_opt(timestamp, 0);
     // Create a normal DateTime from the NaiveDateTime
     let datetime: DateTime<Utc> = DateTime::from_utc(naive, Utc);
     
