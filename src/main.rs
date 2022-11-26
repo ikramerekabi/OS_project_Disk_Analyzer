@@ -1,3 +1,6 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
+#![allow(deprecated)]
 extern crate chrono; 
 use walkdir::WalkDir;
 //use std::error::Error;
@@ -25,10 +28,59 @@ let glade_src = include_str!("../layout.glade");
 let builder = gtk::Builder::from_string(glade_src);
 let window :gtk::Window = builder.get_object("application_window1").unwrap();
 window.set_application(Some(app));
-//let window = ApplicationWindow::new(app);
-//window.set_title("disk");
-//window.set_default_size(350,70);
-//let layout_box = Box
+let message_input : gtk::Entry = builder.get_object("message_input_entry").unwrap();
+let message_input_clone1= message_input.clone();
+let message_input_clone2= message_input.clone();
+let by_size_button: gtk::Button = builder.get_object("sort_by_size").unwrap();
+let time_of_modification_button: gtk::Button = builder.get_object("sort_by_time").unwrap();
+let find_duplicate_button: gtk::Button = builder.get_object("find_duplicate").unwrap();
+let message_output: gtk::Label = builder.get_object("message_output").unwrap();
+let message_output_clone1= message_output.clone();
+let message_output_clone2= message_output.clone();
+
+
+//Button By Size
+by_size_button.connect_clicked(move |_| {
+let message_gstring = message_input.get_text();
+let sorted_by_size = sort_by_size();
+let mut join_vector = vec![];
+for item in &sorted_by_size
+{
+join_vector.push(item.1.to_string());
+join_vector.push("\t".to_string());
+join_vector.push(item.0.to_string());
+join_vector.push(" Bytes".to_string());
+join_vector.push("\n".to_string());
+}
+let join_vector_bysize = join_vector.concat();
+let message = if message_gstring.as_str().is_empty() { &"No directory entered" } else { join_vector_bysize.as_str() };
+message_output.set_text(&format!("{}",message));
+
+
+});
+//Button By Time of Modification
+time_of_modification_button.connect_clicked(move |_| {
+let message_gstring = message_input_clone1.get_text();
+let sorted_by_modification_time = sort_by_time();
+let join_vector_modification_time = sorted_by_modification_time.concat();
+let message = if message_gstring.as_str().is_empty() { &"No directory entered" } else { join_vector_modification_time.as_str() };
+message_output_clone1.set_text(&format!("{}",message));
+
+
+});
+
+find_duplicate_button.connect_clicked(move |_| {
+let message_gstring = message_input_clone2.get_text();
+let duplicates = find_duplicate();
+let join_vector_duplicates= duplicates.concat();
+let message = if message_gstring.as_str().is_empty() { &"No directory entered" } else { join_vector_duplicates.as_str() };
+message_output_clone2.set_text(&format!("{}",message));
+
+
+});
+
+window.set_title("Disk Analyzer");
+window.set_default_size(350,70);
 window.show_all();
 
 });
@@ -41,10 +93,13 @@ app.run(&env::args().collect::<Vec<_>>());
 //find_duplicate();
 //Ok() ;
 }
-fn sort_by_size(){
+
+
+
+fn sort_by_size()->Vec<(u64, std::string::String)>{
 
 let mut file_and_size_vec = vec![];
-  for entry in WalkDir::new("/home/maram/disk") {
+  for entry in WalkDir::new("/home/mohamadalzarif/OS") {
     
     let entry = entry.unwrap();
     let path = Path::new(entry.path());
@@ -60,16 +115,21 @@ let mut file_and_size_vec = vec![];
 }
 
 file_and_size_vec.sort_by(|a,b| b.0.cmp(&a.0));
-for item in file_and_size_vec
-{
-println!("{}\n{} bytes\n", item.1, item.0);
+
+//for item in file_and_size_vec
+//{
+//println!("{}\n{} bytes\n", item.1, item.0);
+//}
+file_and_size_vec
 }
 
-}
-fn sort_by_time(){
+
+
+fn sort_by_time()->Vec<std::string::String>{
 
 let mut file_and_time_vec = vec![];
-  for entry in WalkDir::new("/home/maram/disk") {
+let mut file_and_time_vec_return = vec![];
+  for entry in WalkDir::new("/home/mohamadalzarif/OS") {
     
     let entry = entry.unwrap();
     let path = Path::new(entry.path());
@@ -96,14 +156,19 @@ file_and_time_vec.sort_by(|b,a| b.0.cmp(&a.0));
 for item in file_and_time_vec
 {
 println!("{}\n{} +2 GMT\n", item.2, item.1);
-
+file_and_time_vec_return.push(item.2.to_string());
+file_and_time_vec_return.push("\t".to_string());
+file_and_time_vec_return.push(item.1.to_string());
+file_and_time_vec_return.push("+2 GMT".to_string());
+file_and_time_vec_return.push("\n".to_string());
 }
+file_and_time_vec_return
 }
 
-fn find_duplicate(){
+fn find_duplicate()->Vec<std::string::String>{
 
 let mut filenames = HashMap::new();
-
+let mut files_duplicates = vec![];
 for entry in WalkDir::new(".")
             .into_iter()
             .filter_map(Result::ok)
@@ -113,7 +178,9 @@ for entry in WalkDir::new(".")
         *counter += 1;
 
         if *counter == 2 {
-            println!("{}", f_name);
+            files_duplicates.push(f_name);
+            files_duplicates.push("\n".to_string());
         }
     }
+    files_duplicates
 }
