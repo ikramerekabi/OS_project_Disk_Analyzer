@@ -9,17 +9,19 @@ use fltk::{
     window::Window,
 };
 use fltk::{prelude::*, *};
+use gtk::Label;
 extern crate chrono;
 use crate::fs::*;
 use chrono::prelude::*;
+use filesize::*;
 use filetime::FileTime;
 use fltk::enums::{Color, FrameType};
 use fltk_theme::{color_themes, ColorTheme};
 use fs_extra::dir::get_size;
 use std::collections::HashMap;
-use std::*;
 use std::io;
 use std::path::*;
+use std::*;
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Copy)]
@@ -31,17 +33,19 @@ pub enum Message {
     Duplicate,
     DeleteDuplicate,
     RenameFile,
+    ChangeFileLocation,
 }
 
 pub fn show_dialog() -> MyDialog {
     MyDialog::default()
 }
 
-pub fn show_dialog_addition(window_text: string::String,
+pub fn show_dialog_addition(
+    window_text: string::String,
     screen_message: string::String,
     enter_message: string::String,
 ) -> MyDialog {
-    MyDialog::custom(window_text,screen_message,enter_message)
+    MyDialog::custom(window_text, screen_message, enter_message)
 }
 pub struct MyDialog {
     inp: input::Input,
@@ -57,13 +61,15 @@ impl MyDialog {
             .with_size(300, 30)
             .center_of_parent()
             .with_type(group::PackType::Vertical);
-            pack1.set_spacing(20);
-            frame::Frame::default().with_size(80, 0).with_label("Directory will be created at\n current traversed directory location.");
+        pack1.set_spacing(20);
+        frame::Frame::default()
+            .with_size(80, 0)
+            .with_label("Directory will be created at\n current traversed directory location.");
         let mut pack = group::Pack::default()
             .with_size(300, 30)
             .center_of_parent()
             .with_type(group::PackType::Horizontal);
-        
+
         pack.set_spacing(20);
 
         frame::Frame::default()
@@ -90,10 +96,12 @@ impl MyDialog {
         }
         Self { inp }
     }
-    
-    pub fn custom(window_text: string::String,
-         screen_message: string::String,
-        enter_message: string::String,) -> Self {
+
+    pub fn custom(
+        window_text: string::String,
+        screen_message: string::String,
+        enter_message: string::String,
+    ) -> Self {
         let mut win = window::Window::default()
             .with_size(500, 200)
             .with_label(&window_text);
@@ -102,21 +110,22 @@ impl MyDialog {
             .with_size(300, 100)
             .center_of_parent()
             .with_type(group::PackType::Vertical);
-            pack1.set_spacing(20);
-            frame::Frame::default().with_size(80, 0).with_label(&screen_message);
+        pack1.set_spacing(20);
+        frame::Frame::default()
+            .with_size(80, 0)
+            .with_label(&screen_message);
         let mut pack = group::Pack::default()
             .with_size(300, 30)
             .with_type(group::PackType::Horizontal);
-        
+
         pack.set_spacing(100);
 
         frame::Frame::default()
             .with_size(80, 0)
             .with_label(&enter_message)
             .with_pos(770, 50);
-        let mut inp = input::Input::default().with_size(100, 0).with_pos(770, 50);
+        let mut inp = input::Input::default().with_size(200, 0).with_pos(770, 50);
         inp.set_frame(FrameType::FlatBox);
-        
 
         pack.end();
         let mut ok = button::Button::default().with_size(80, 40).with_label("Ok");
@@ -150,7 +159,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wind.set_color(Color::from_rgb(160, 160, 160));
     let mut inp1 = input::Input::default().with_size(250, 40).with_pos(20, 50);
     let mut exclude_filetype_input = input::Input::default().with_size(250, 40).with_pos(20, 100);
-    
+    //let mut exclude_filetype_label = text::TextDisplay::new(100 , 100, 30, 20, "Enter Filetype To Exclude: ");
+
     let mut but_inc: Button = Button::default()
         .with_size(150, 40)
         .with_label("Sort by size")
@@ -177,8 +187,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_label("Create Directory")
         .with_pos(380, 100);
     let mut RenameFile: Button = Button::default()
-        .with_size(220, 40)
+        .with_size(150, 40)
         .with_label("Rename File")
+        .with_pos(770, 100);
+    let mut ChangeFileLocation: Button = Button::default()
+        .with_size(220, 40)
+        .with_label("Change File Location")
         .with_pos(540, 100);
     let mut frame = Frame::default()
         .with_size(0, 40)
@@ -195,13 +209,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     button_delete_duplicate.set_color(Color::from_rgb(127, 129, 131));
     create_dir.set_color(Color::from_rgb(127, 129, 131));
     RenameFile.set_color(Color::from_rgb(127, 129, 131));
+    ChangeFileLocation.set_color(Color::from_rgb(127, 129, 131));
     chart.set_type(misc::ChartType::Pie);
     let mut path_tree = tree::Tree::default().with_size(600, 550).with_pos(30, 160);
-    let mut last_modified_date = output::Output::default().with_size(250, 40).with_pos(180, 730);
+    let mut last_modified_date = output::Output::default()
+        .with_size(250, 40)
+        .with_pos(180, 730);
     let mut last_modified_date2 = last_modified_date.clone();
     //last_modified_date2.hide();
     last_modified_date2.set_label("Last Modified Date: ");
-    
+
     let mut path_tree2 = path_tree.clone();
     let mut path_tree3 = path_tree.clone();
     let mut path_tree4 = path_tree.clone();
@@ -227,6 +244,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     button_delete_duplicate.emit(s, Message::DeleteDuplicate);
     create_dir.emit(s, Message::CreateDir);
     RenameFile.emit(s, Message::RenameFile);
+    ChangeFileLocation.emit(s, Message::ChangeFileLocation);
     while app.wait() {
         let label: string::String = inp1.value().to_string();
         let exclude_filetype_label: string::String = exclude_filetype_input.value().to_string();
@@ -241,14 +259,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut path_tree8 = path_tree6.clone();
         let mut path_tree9 = path_tree6.clone();
         let mut last_modified_date3 = last_modified_date2.clone();
-        last_modified_date2.set_value(&show_last_modified_time(last_modified_date3,path_tree9,label_uw5,exclude_filetype_label2));
+        last_modified_date2.set_value(&show_last_modified_time(
+            last_modified_date3,
+            path_tree9,
+            label_uw5,
+            exclude_filetype_label2,
+        ));
         if let Some(msg) = r.recv() {
             match msg {
-                
                 Message::TreeView => {
                     let mut path_tree5 = path_tree.clone();
                     path_tree5.clear();
-                    tree_view(path_tree5, label_uw1,exclude_filetype_label);
+                    tree_view(path_tree5, label_uw1, exclude_filetype_label);
                 }
                 Message::Size => {
                     chart.clear();
@@ -256,16 +278,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     sorted_by_size = sort_by_size(label_uw);
                     total = 0.;
                     for item in &sorted_by_size {
-                        total += item.0;
+                        total += item.0 as f64;
                     }
 
                     chart.set_bounds(0.0, total);
-                    chart.set_text_size(18);
+                    chart.set_text_size(10);
                     let mut i = 0;
                     for item in &sorted_by_size {
-                        i += 100000;
+                        i += 1000000;
                         chart.add(
-                            item.0,
+                            item.0 as f64,
                             &item.1.to_string(),
                             enums::Color::from_u32(0xcc9c59 + i),
                         );
@@ -305,13 +327,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 Message::DeleteDuplicate => {
-                    delete_duplicates(path_tree7,label_uw3);
+                    delete_duplicates(path_tree7, label_uw3);
                 }
                 Message::RenameFile => {
                     let mut frame3 = frame1.clone();
-                    let b = show_dialog_addition("Rename".to_string(),
-                    "File name will be changed to newly inputed one.".to_string()
-                    ,"Enter New File Name".to_string());
+                    let b = show_dialog_addition(
+                        "Rename".to_string(),
+                        "File name will be changed to newly inputed one.".to_string(),
+                        "Enter New File Name".to_string(),
+                    );
                     let selected_stuff = path_tree4.get_selected_items();
                     if !selected_stuff.is_none() {
                         let selected_stuff2 = selected_stuff.unwrap();
@@ -322,30 +346,77 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             for item3 in path_to_rename {
                                 let mut original_address = Path::new(&item7);
                                 let file_extension = original_address.extension();
-                            match file_extension{
-                                Some(_) => {
-                                    let name_change_new_file = label_uw4.to_string() + "/" + &b.value() + "." + &file_extension.unwrap().to_str().unwrap();
-                                    
-                                    change_file_name(&item3, &name_change_new_file);
-                    }
-                    None => {
-                    }
+                                match file_extension {
+                                    Some(_) => {
+                                        let name_change_new_file = label_uw4.to_string()
+                                            + "/"
+                                            + &b.value()
+                                            + "."
+                                            + &file_extension.unwrap().to_str().unwrap();
 
-                            }
-                               
+                                        change_file_name(&item3, &name_change_new_file);
+                                    }
+                                    None => {}
+                                }
                             }
                         }
                         let mut path_tree10 = path_tree8.clone();
                         path_tree10.clear();
-                        tree_view(path_tree10, label_uw4,exclude_filetype_label);
+                        tree_view(path_tree10, label_uw4, exclude_filetype_label);
                     } else {
                     }
                 }
+                Message::ChangeFileLocation => {
+                    //
+                    let mut frame3 = frame1.clone();
+                    let b = show_dialog_addition(
+                        "Change File Location".to_string(),
+                        "Enter Directory the selected file will be moved onto".to_string(),
+                        "Enter Directory Location".to_string(),
+                    );
+                    let selected_stuff = path_tree4.get_selected_items();
+                    if !selected_stuff.is_none() {
+                        let selected_stuff2 = selected_stuff.unwrap();
+                        for item in selected_stuff2 {
+                            let mut item2 = item.label().unwrap();
+                            let item7 = item2.clone();
+                            let item6 = item2.clone();
+                            let mut path_to_rename = item_location(label_uw4.to_string(), item2);
+                            for item3 in path_to_rename {
+                                let mut original_address = Path::new(&item7);
+                                let file_extension = original_address.extension();
+                                match file_extension {
+                                    Some(_) => {
+                                        
+                                        let new_file_location = Path::new(&b.value()).is_dir();
+                                        if new_file_location{
+                                            
+                                        let name_change_new_file = 
+                                            b.value()
+                                            + "/"
+                                            + &item6;
+                                         change_file_name(&item3, &name_change_new_file);
+                                    }
+                                    }
+                                    None => {}
+                                }
+                            }
+                        }
+                        let mut path_tree10 = path_tree8.clone();
+                        path_tree10.clear();
+                        tree_view(path_tree10, label_uw4, exclude_filetype_label);
+                    } else {
+                    }
+                    //
+                }
                 Message::CreateDir => {
                     let mut frame2 = frame1.clone();
-                    let d = show_dialog_addition("Create File".to_string(),
-                    "Directory will be created at\n current traversed directory location.".to_string()
-                    ,"Enter New Directory Name".to_string());
+                    let d = show_dialog_addition(
+                        "Create File".to_string(),
+                        "Directory will be created at\n current traversed directory location."
+                            .to_string(),
+                        "Enter New Directory Name".to_string(),
+                    );
                     create_directory(label_uw1, d.value());
                 }
             }
@@ -355,29 +426,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn sort_by_size(label: string::String) -> Vec<(f64, string::String)> {
+fn sort_by_size(mut label: string::String) -> Vec<(u64, string::String)> {
     let mut file_and_size_vec = vec![];
+    let label2 = label.clone();
     for entry in WalkDir::new(label) {
         match entry {
             Ok(entry) => {
-                let path = entry.path();
-                let folder_data_size = get_size(path);
-                match folder_data_size {
-                    Ok(folder_data_size) => {
-                        let name = path
-                            .file_stem()
-                            .unwrap()
-                            .to_os_string()
-                            .into_string()
-                            .unwrap();
-                        let metadata_d = fs::metadata(path).unwrap();
-                        if metadata_d.is_dir() {
-                            if folder_data_size > 800000000 {
-                                file_and_size_vec.push((folder_data_size as f64, name));
+                if entry.path().to_str().unwrap() != label2 {
+                    let path = entry.path();
+                    let file_size = get_size(path);
+
+                    match file_size {
+                        Ok(file_size) => {
+                            let name = path
+                                .file_stem()
+                                .unwrap()
+                                .to_os_string()
+                                .into_string()
+                                .unwrap();
+                            let name2 = name.clone();
+
+                            //if metadata_d.is_dir() {
+                            if file_size > 800000000 {
+                                file_and_size_vec.push((file_size, name2));
+
+                                //}
                             }
                         }
+                        Err(err) => {}
                     }
-                    Err(err) => {}
                 }
             }
             Err(err) => {
@@ -473,7 +550,10 @@ fn sort_by_time(message_input_fn: string::String) -> Vec<string::String> {
     file_and_time_vec_return
 }
 
-fn find_duplicate_of_item( path_dir: string::String,   item_duplicate: string::String,) -> Vec<string::String> {
+fn find_duplicate_of_item(
+    path_dir: string::String,
+    item_duplicate: string::String,
+) -> Vec<string::String> {
     let mut find_duplicate_of_item = vec![];
     for entry in WalkDir::new(path_dir)
         .into_iter()
@@ -481,7 +561,7 @@ fn find_duplicate_of_item( path_dir: string::String,   item_duplicate: string::S
         .filter(|e| !e.file_type().is_dir())
     {
         let f_name = String::from(entry.file_name().to_string_lossy());
-        println!("{} and {}",f_name,item_duplicate);
+        println!("{} and {}", f_name, item_duplicate);
         if f_name == item_duplicate {
             find_duplicate_of_item.push(entry.path().as_os_str().to_str().unwrap().to_string());
         }
@@ -489,7 +569,11 @@ fn find_duplicate_of_item( path_dir: string::String,   item_duplicate: string::S
     find_duplicate_of_item
 }
 
-fn tree_view(mut path_tree: Tree, directory_entry: string::String,exclude_extension: string::String,) {
+fn tree_view(
+    mut path_tree: Tree,
+    directory_entry: string::String,
+    exclude_extension: string::String,
+) {
     path_tree.clear();
 
     for entry in WalkDir::new(directory_entry.to_string()) {
@@ -507,30 +591,32 @@ fn tree_view(mut path_tree: Tree, directory_entry: string::String,exclude_extens
                             .to_os_string()
                             .into_string()
                             .unwrap();
-                            
-                            let f_name = entry.file_name().to_string_lossy();
-                            let file_extension = path.extension();
-                            match file_extension{
-                                Some(_) => {
-                                    let file_extensiondot: string::String = ".".to_string() + file_extension.unwrap().to_str().unwrap();
-                                    if  f_name.ends_with(&exclude_extension) && !exclude_extension.is_empty() {
 
+                        let f_name = entry.file_name().to_string_lossy();
+                        let file_extension = path.extension();
+                        match file_extension {
+                            Some(_) => {
+                                let file_extensiondot: string::String =
+                                    ".".to_string() + file_extension.unwrap().to_str().unwrap();
+                                if f_name.ends_with(&exclude_extension)
+                                    && !exclude_extension.is_empty()
+                                {
+                                } else {
+                                    if path.has_root() {
+                                        let parent2 = path.parent().unwrap().display().to_string();
+                                        let entry_data = parent2
+                                            + "/"
+                                            + &name
+                                            + "."
+                                            + file_extension.unwrap().to_str().unwrap();
+                                        path_tree.add(&entry_data);
+                                    } else {
+                                        println!("{}", path.display());
                                     }
-                                    else{
-                        if path.has_root() {
-                            let parent2 = path.parent().unwrap().display().to_string();
-                            let entry_data = parent2 + "/" + &name + "." + file_extension.unwrap().to_str().unwrap();
-                            path_tree.add(&entry_data);
-                        }
-                        else{
-                            println!("{}",path.display());
-                        }
-                    }
-                }
-                    None => {
-                    }
-
+                                }
                             }
+                            None => {}
+                        }
                     }
                     Err(err) => {}
                 }
@@ -563,15 +649,13 @@ fn create_directory(create_dir_location: string::String, dir_name: string::Strin
     let copy_of_final_dir = final_dir_loc.clone();
     let create_direction = fs::create_dir(final_dir_loc);
     match create_direction {
-        Ok(create_direction) => {
-        }
+        Ok(create_direction) => {}
 
-        Err(create_direction) => {
-        }
+        Err(create_direction) => {}
     }
 }
 
-fn item_location( path_dir: string::String,   item_name: string::String,) -> Vec<string::String> {
+fn item_location(path_dir: string::String, item_name: string::String) -> Vec<string::String> {
     let mut item_location_vec = vec![];
     for entry in WalkDir::new(path_dir)
         .into_iter()
@@ -587,14 +671,16 @@ fn item_location( path_dir: string::String,   item_name: string::String,) -> Vec
 }
 
 fn change_file_name(path2: &str, name: &str) {
-
     rename(path2, name);
 }
 
-fn show_last_modified_time(mut output_button: output::Output,mut path_tree: Tree, mut label_uw4: std::string::String, exclude_filetype_label: std::string::String,) -> string::String{
-
-    
-    let mut newdate: std::string::String="".to_string();
+fn show_last_modified_time(
+    mut output_button: output::Output,
+    mut path_tree: Tree,
+    mut label_uw4: std::string::String,
+    exclude_filetype_label: std::string::String,
+) -> string::String {
+    let mut newdate: std::string::String = "".to_string();
     let selected_stuff = path_tree.get_selected_items();
     if !selected_stuff.is_none() {
         let selected_stuff2 = selected_stuff.unwrap();
@@ -616,34 +702,32 @@ fn show_last_modified_time(mut output_button: output::Output,mut path_tree: Tree
                     }
                     Err(err) => {}
                 }
-               
             }
         }
     } else {
         output_button.hide();
-        newdate= "".to_string();
+        newdate = "".to_string();
     }
 
- return newdate;
+    return newdate;
 }
-fn delete_duplicates(mut path_tree3: Tree, label_uw3: string::String){
-
+fn delete_duplicates(mut path_tree3: Tree, label_uw3: string::String) {
     let selected_stuff = path_tree3.get_selected_items();
-                    if !selected_stuff.is_none() {
-                        let selected_stuff2 = selected_stuff.unwrap();
-                        for item in selected_stuff2 {
-                            let mut item2 = item.label().unwrap();
-                            let mut path_to_delete = find_duplicate_of_item(label_uw3.to_string(), item2);
-                            for item3 in path_to_delete {
-                                remove_file(item3);
-                            }
-                        }
-                        path_tree3.clear();
-                        let find_duplicate_vec2 = find_duplicate(label_uw3);
-                        let join_vector_duplicate2 = find_duplicate_vec2.concat();
-                        for i in &find_duplicate_vec2 {
-                            path_tree3.add(i);
-                        }
-                    } else {
-                    }
+    if !selected_stuff.is_none() {
+        let selected_stuff2 = selected_stuff.unwrap();
+        for item in selected_stuff2 {
+            let mut item2 = item.label().unwrap();
+            let mut path_to_delete = find_duplicate_of_item(label_uw3.to_string(), item2);
+            for item3 in path_to_delete {
+                remove_file(item3);
+            }
+        }
+        path_tree3.clear();
+        let find_duplicate_vec2 = find_duplicate(label_uw3);
+        let join_vector_duplicate2 = find_duplicate_vec2.concat();
+        for i in &find_duplicate_vec2 {
+            path_tree3.add(i);
+        }
+    } else {
+    }
 }
