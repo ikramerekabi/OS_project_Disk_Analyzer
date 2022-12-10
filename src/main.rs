@@ -186,11 +186,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_size(150, 40)
         .with_label("Create Directory")
         .with_pos(380, 100);
-    let mut RenameFile: Button = Button::default()
+    let mut rename_file: Button = Button::default()
         .with_size(150, 40)
         .with_label("Rename File")
         .with_pos(770, 100);
-    let mut ChangeFileLocation: Button = Button::default()
+    let mut change_file_location: Button = Button::default()
         .with_size(220, 40)
         .with_label("Change File Location")
         .with_pos(540, 100);
@@ -208,17 +208,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     button_tree_view.set_color(Color::from_rgb(127, 129, 131));
     button_delete_duplicate.set_color(Color::from_rgb(127, 129, 131));
     create_dir.set_color(Color::from_rgb(127, 129, 131));
-    RenameFile.set_color(Color::from_rgb(127, 129, 131));
-    ChangeFileLocation.set_color(Color::from_rgb(127, 129, 131));
+    rename_file.set_color(Color::from_rgb(127, 129, 131));
+    change_file_location.set_color(Color::from_rgb(127, 129, 131));
     chart.set_type(misc::ChartType::Pie);
     let mut path_tree = tree::Tree::default().with_size(600, 550).with_pos(30, 160);
     let mut last_modified_date = output::Output::default()
         .with_size(250, 40)
         .with_pos(180, 730);
+        let mut file_size = output::Output::default()
+        .with_size(250, 40)
+        .with_pos(740, 730);
     let mut last_modified_date2 = last_modified_date.clone();
-    //last_modified_date2.hide();
     last_modified_date2.set_label("Last Modified Date: ");
-
+    let mut file_size2 = file_size.clone();
+    file_size2.set_label("File Size: ");
     let mut path_tree2 = path_tree.clone();
     let mut path_tree3 = path_tree.clone();
     let mut path_tree4 = path_tree.clone();
@@ -243,8 +246,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     button_tree_view.emit(s, Message::TreeView);
     button_delete_duplicate.emit(s, Message::DeleteDuplicate);
     create_dir.emit(s, Message::CreateDir);
-    RenameFile.emit(s, Message::RenameFile);
-    ChangeFileLocation.emit(s, Message::ChangeFileLocation);
+    rename_file.emit(s, Message::RenameFile);
+    change_file_location.emit(s, Message::ChangeFileLocation);
     while app.wait() {
         let label: string::String = inp1.value().to_string();
         let exclude_filetype_label: string::String = exclude_filetype_input.value().to_string();
@@ -255,15 +258,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut label_uw3 = label.clone();
         let mut label_uw4 = label.clone();
         let mut label_uw5 = label.clone();
+        let mut label_uw6 = label.clone();
         let mut path_tree7 = path_tree6.clone();
         let mut path_tree8 = path_tree6.clone();
         let mut path_tree9 = path_tree6.clone();
+        let mut path_tree10 = path_tree6.clone();
         let mut last_modified_date3 = last_modified_date2.clone();
+        let mut file_size3 = file_size2.clone();
         last_modified_date2.set_value(&show_last_modified_time(
             last_modified_date3,
             path_tree9,
             label_uw5,
-            exclude_filetype_label2,
+        ));
+        file_size2.set_value(&show_file_size(
+             file_size3,
+            path_tree10,
+            label_uw6
         ));
         if let Some(msg) = r.recv() {
             match msg {
@@ -429,6 +439,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn sort_by_size(mut label: string::String) -> Vec<(u64, string::String)> {
     let mut file_and_size_vec = vec![];
     let label2 = label.clone();
+    let mut others_size = 0;
     for entry in WalkDir::new(label) {
         match entry {
             Ok(entry) => {
@@ -452,6 +463,10 @@ fn sort_by_size(mut label: string::String) -> Vec<(u64, string::String)> {
 
                                 //}
                             }
+                            else{
+                                others_size+=file_size;
+                            }
+                            
                         }
                         Err(err) => {}
                     }
@@ -469,6 +484,9 @@ fn sort_by_size(mut label: string::String) -> Vec<(u64, string::String)> {
                 }
             }
         }
+    }
+    if others_size > 0{
+        file_and_size_vec.push((others_size, "Others".to_string()));
     }
     return file_and_size_vec;
 }
@@ -561,7 +579,6 @@ fn find_duplicate_of_item(
         .filter(|e| !e.file_type().is_dir())
     {
         let f_name = String::from(entry.file_name().to_string_lossy());
-        println!("{} and {}", f_name, item_duplicate);
         if f_name == item_duplicate {
             find_duplicate_of_item.push(entry.path().as_os_str().to_str().unwrap().to_string());
         }
@@ -611,7 +628,6 @@ fn tree_view(
                                             + file_extension.unwrap().to_str().unwrap();
                                         path_tree.add(&entry_data);
                                     } else {
-                                        println!("{}", path.display());
                                     }
                                 }
                             }
@@ -678,7 +694,6 @@ fn show_last_modified_time(
     mut output_button: output::Output,
     mut path_tree: Tree,
     mut label_uw4: std::string::String,
-    exclude_filetype_label: std::string::String,
 ) -> string::String {
     let mut newdate: std::string::String = "".to_string();
     let selected_stuff = path_tree.get_selected_items();
@@ -689,14 +704,16 @@ fn show_last_modified_time(
             let item7 = item2.clone();
             let mut path_to_display_modified = item_location(label_uw4.to_string(), item2);
             for item3 in path_to_display_modified {
+                let item8 = item3.clone();
                 let metadata_d = fs::metadata(item3);
                 match metadata_d {
                     Ok(metadata_d) => {
+                        
                         let file_time = FileTime::from_last_modification_time(&metadata_d);
                         let timestamp = file_time.seconds();
                         let naive = NaiveDateTime::from_timestamp(timestamp, 0);
                         let datetime: DateTime<Utc> = DateTime::from_utc(naive, Utc);
-
+                        let file_size = get_size(&item8);
                         newdate = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
                         output_button.show();
                     }
@@ -711,6 +728,44 @@ fn show_last_modified_time(
 
     return newdate;
 }
+//
+
+fn show_file_size(
+    mut output_button_size: output::Output,
+    mut path_tree: Tree,
+    mut label_uw4: std::string::String,
+) -> string::String {
+    let mut filesize_display: std::string::String = "".to_string();
+    let selected_stuff = path_tree.get_selected_items();
+    if !selected_stuff.is_none() {
+        let selected_stuff2 = selected_stuff.unwrap();
+        for item in selected_stuff2 {
+            let mut item2 = item.label().unwrap();
+            let item7 = item2.clone();
+            let mut path_to_display_modified = item_location(label_uw4.to_string(), item2);
+            for item3 in path_to_display_modified {
+                let item8 = item3.clone();
+                let metadata_d = fs::metadata(item3);
+                match metadata_d {
+                    Ok(metadata_d) => {
+                        
+                        let file_size = get_size(&item8);
+                        filesize_display = file_size.unwrap().to_string() + " Bytes";
+                        output_button_size.show();
+                    }
+                    Err(err) => {}
+                }
+            }
+        }
+    } else {
+        filesize_display = "".to_string();
+        output_button_size.hide();
+    }
+
+    return filesize_display;
+}
+
+//
 fn delete_duplicates(mut path_tree3: Tree, label_uw3: string::String) {
     let selected_stuff = path_tree3.get_selected_items();
     if !selected_stuff.is_none() {
